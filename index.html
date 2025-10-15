@@ -117,7 +117,7 @@
             }
         }
 
-        // 主处理逻辑
+        // 主处理逻辑（只改了这里！）
         function processRedirect() {
             const urlParams = new URLSearchParams(window.location.search);
             const encodedParam = urlParams.get('c');
@@ -129,16 +129,19 @@
 
             try {
                 const trueUrl = atob(encodedParam);
-                if (trueUrl.includes("http")) {
+                // 新增：强制解析完整URL，避免末尾标识被截断
+                const fullUrl = new URL(trueUrl).href; 
+                
+                if (fullUrl.includes("http")) {
                     // 检查域名是否在白名单
-                    if (!isAllowedDomain(trueUrl)) {
+                    if (!isAllowedDomain(fullUrl)) {
                         showError('该域名不允许跳转');
                         return;
                     }
 
                     // 延迟跳转，让用户看到加载动画
                     setTimeout(() => {
-                        redirectToUrl(trueUrl);
+                        redirectToUrl(fullUrl); // 这里改用fullUrl
                     }, 1000);
                 } else {
                     showError('无效的URL');
