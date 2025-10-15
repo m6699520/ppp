@@ -3,16 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1.0">
-    <title>跳转中...</title>
+    <title>解码结果</title>
     <style>
         .container {
             width: 100px;
             height: 100px;
             position: absolute;
-            top: 50%;
+            top: 40%;
             left: 50%;
             transform: translate(-50%, -50%);
             animation: rotate-move 2s ease-in-out infinite;
+            display: block;
         }
         .dot {
             width: 15px;
@@ -46,14 +47,62 @@
             80%,100% { transform: translate(-50%, -50%) rotate(360deg) }
         }
 
+        .result-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            max-width: 600px;
+            display: none;
+        }
+        
+        .url-display {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            word-break: break-all;
+            margin-bottom: 10px;
+            font-family: Arial, sans-serif;
+        }
+        
+        .copy-btn {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+        
+        .copy-btn:hover {
+            background-color: #45a049;
+        }
+        
+        .copy-btn.copied {
+            background-color: #2e7d32;
+        }
+        
+        .instructions {
+            color: #333;
+            font-family: Arial, sans-serif;
+            margin-top: 10px;
+            text-align: center;
+        }
+
         .error-message {
             position: absolute;
-            top: 60%;
+            top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
             color: #ff0000;
             font-family: Arial, sans-serif;
             display: none;
+            text-align: center;
+            width: 80%;
         }
     </style>
 </head>
@@ -64,6 +113,13 @@
     <div class="dot dot-1"></div>
     <div class="dot dot-2"></div>
     <div class="dot dot-3"></div>
+</div>
+
+<!-- 结果显示容器 -->
+<div class="result-container" id="resultContainer">
+    <div class="url-display" id="urlDisplay"></div>
+    <button class="copy-btn" id="copyBtn">复制链接</button>
+    <p class="instructions">请将链接复制到浏览器中打开</p>
 </div>
 
 <div class="error-message" id="errorMessage"></div>
@@ -95,60 +151,57 @@
             }
         }
 
-        // 处理HTTP跳转的特殊方法
-        function redirectToUrl(url) {
-            // 检查是否是从HTTPS跳转到HTTP
-            const isHttpsToHttp = window.location.protocol === 'https:' && url.startsWith('http:');
-            
-            if (isHttpsToHttp) {
-                // 对于HTTPS到HTTP的跳转，使用meta标签方式
-                const meta = document.createElement('meta');
-                meta.httpEquiv = 'refresh';
-                meta.content = `0;url=${url}`;
-                document.head.appendChild(meta);
-                
-                // 作为备选方案，也尝试使用window.location
-                setTimeout(() => {
-                    window.location.href = url;
-                }, 100);
-            } else {
-                // 正常跳转
-                window.location.href = url;
-            }
-        }
-
-        // 主处理逻辑（只改了这里！）
-        function processRedirect() {
+        // 主处理逻辑
+        function processDecode() {
             const urlParams = new URLSearchParams(window.location.search);
             const encodedParam = urlParams.get('c');
 
             if (!encodedParam) {
-                showError('缺少参数c');
+                showError('缺少参数c，请按格式拼接 ?c=编码后的链接');
                 return;
             }
 
             try {
                 const trueUrl = atob(encodedParam);
-                // 新增：强制解析完整URL，避免末尾标识被截断
-                const fullUrl = new URL(trueUrl).href; 
-                
-                if (fullUrl.includes("http")) {
+                if (trueUrl.includes("http")) {
                     // 检查域名是否在白名单
-                    if (!isAllowedDomain(fullUrl)) {
-                        showError('该域名不允许跳转');
+                    if (!isAllowedDomain(trueUrl)) {
+                        showError('该域名不允许访问');
                         return;
                     }
 
-                    // 延迟跳转，让用户看到加载动画
+                    // 显示解码后的URL和复制按钮，不自动跳转
                     setTimeout(() => {
-                        redirectToUrl(fullUrl); // 这里改用fullUrl
+                        document.getElementById('loadingContainer').style.display = 'none';
+                        const resultContainer = document.getElementById('resultContainer');
+                        const urlDisplay = document.getElementById('urlDisplay');
+                        
+                        urlDisplay.textContent = trueUrl;
+                        resultContainer.style.display = 'block';
+                        
+                        // 复制功能
+                        document.getElementById('copyBtn').addEventListener('click', function() {
+                            navigator.clipboard.writeText(trueUrl).then(() => {
+                                const btn = document.getElementById('copyBtn');
+                                btn.textContent = '已复制!';
+                                btn.classList.add('copied');
+                                
+                                setTimeout(() => {
+                                    btn.textContent = '复制链接';
+                                    btn.classList.remove('copied');
+                                }, 2000);
+                            }).catch(err => {
+                                console.error('复制失败:', err);
+                                alert('复制失败，请手动复制');
+                            });
+                        });
                     }, 1000);
                 } else {
-                    showError('无效的URL');
+                    showError('无效的URL，请检查编码是否正确');
                 }
             } catch (e) {
                 console.error('URL解码失败:', e);
-                showError('URL解码失败');
+                showError('URL解码失败，请检查Base64编码是否正确');
             }
         }
 
@@ -170,8 +223,9 @@
             }
         });
 
-        processRedirect();
+        processDecode();
     })();
 </script>
 </body>
 </html>
+    
